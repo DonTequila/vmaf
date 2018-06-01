@@ -48,7 +48,7 @@ AVX_OBJS := \
 	$(OBJDIR)/convolution_avx.o \
 
 # CFLAGS_COMMON = -g -O3 -fPIC -w -Wextra -pedantic
-CFLAGS_COMMON = -g -O3 -fPIC -w -Wextra -pedantic -D MULTI_THREADING
+CFLAGS_COMMON = -g -O3 -fPIC -w -Wextra -pedantic -D MULTI_THREADING -D FFMPEG_IMPORT
 # CFLAGS_COMMON = -g -O0 -fPIC -Wall -Wextra -pedantic -D BUILD_O0 #-D PRINT_PROGRESS
 
 CFLAGS   := -std=c99 $(CFLAGS_COMMON) $(CFLAGS)
@@ -98,9 +98,6 @@ $(OBJDIR)/vif_tools.o: $(FEATURESRCDIR)/vif_tools.c
 	$(CC) -c -o $@ $(CFLAGS) $(CPPFLAGS) $<
 
 $(OBJDIR)/motion.o: $(FEATURESRCDIR)/motion.c
-	$(CC) -c -o $@ $(CFLAGS) $(CPPFLAGS) $<
-
-$(OBJDIR)/psnr.o: $(FEATURESRCDIR)/psnr.c
 	$(CC) -c -o $@ $(CFLAGS) $(CPPFLAGS) $<
 
 $(OBJDIR)/math_utils.o: $(FEATURESRCDIR)/iqa/math_utils.c

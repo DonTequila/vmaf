@@ -16,6 +16,13 @@
  *
  */
 
+#ifdef FFMPEG_IMPORT
+#include <wchar.h>
+#include <locale.h>
+
+#define MAX_PATH 4096
+#endif
+
 #include <cstdio>
 #include <stdlib.h>
 #include <exception>
@@ -48,14 +55,24 @@ bool cmdOptionExists(char** begin, char** end, const std::string& option)
 
 void print_usage(int argc, char *argv[])
 {
+#ifdef FFMPEG_IMPORT
+    fprintf(stderr, "Usage: %s fmt width height ref_path dis_path model_path [--log log_path] [--log-fmt log_fmt] [--disable-clip] [--disable-avx] [--psnr] [--ssim] [--ms-ssim] [--ref-is-raw] [--dis-is-raw] [--ref-start-offset-seconds XXX] [--dis-start-offset-seconds XXX] [--frames XXX] [--ref-deinterlace] [--dis-deinterlace] [--phone-model]\n", argv[0]);
+#else
     fprintf(stderr, "Usage: %s fmt width height ref_path dis_path model_path [--log log_path] [--log-fmt log_fmt] [--disable-clip] [--disable-avx] [--psnr] [--ssim] [--ms-ssim] [--phone-model]\n", argv[0]);
+#endif
     fprintf(stderr, "fmt:\n\tyuv420p\n\tyuv422p\n\tyuv444p\n\tyuv420p10le\n\tyuv422p10le\n\tyuv444p10le\n\n");
     fprintf(stderr, "log_fmt:\n\txml (default)\n\tjson\n\n");
 }
 
+#ifdef FFMPEG_IMPORT
+int run_wrapper(char *fmt, int width, int height, char *ref_path, char *ref_start_offset_seconds, bool ref_is_raw, bool ref_deinterlace, char *dis_path, char *dis_start_offset_seconds, bool dis_is_raw, bool dis_deinterlace, char *max_frames, char *model_path,
+        char *log_path, char *log_fmt, bool disable_clip, bool disable_avx, bool enable_transform, bool phone_model,
+        bool do_psnr, bool do_ssim, bool do_ms_ssim, char *pool_method)
+#else
 int run_wrapper(char *fmt, int width, int height, char *ref_path, char *dis_path, char *model_path,
         char *log_path, char *log_fmt, bool disable_clip, bool disable_avx, bool enable_transform, bool phone_model,
         bool do_psnr, bool do_ssim, bool do_ms_ssim, char *pool_method)
+#endif
 {
     double score;
 
@@ -65,8 +82,6 @@ int run_wrapper(char *fmt, int width, int height, char *ref_path, char *dis_path
     s->format = fmt;
     s->width = width;
     s->height = height;
-    s->ref_rfile = NULL;
-    s->dis_rfile = NULL;
 
     if (!strcmp(fmt, "yuv420p") || !strcmp(fmt, "yuv420p10le"))
     {
@@ -93,6 +108,51 @@ int run_wrapper(char *fmt, int width, int height, char *ref_path, char *dis_path
         goto fail_or_end;
     }
 
+#ifdef FFMPEG_IMPORT
+    wchar_t unicode_ffmpeg_command[MAX_PATH];
+    wchar_t unicode_filename[MAX_PATH];
+    char converted_unicode_command[MAX_PATH];
+
+    if (ref_is_raw == false)
+    {
+        // build ffmpeg command using UTF8 character set
+        mbstowcs(unicode_filename, ref_path, MAX_PATH);
+        swprintf(unicode_ffmpeg_command, MAX_PATH, L"ffmpeg -i \"%ls\" -f image2pipe -vcodec rawvideo -pix_fmt yuv420p", unicode_filename);
+        wcstombs(converted_unicode_command, unicode_ffmpeg_command, MAX_PATH);
+
+        // offset in seconds from start of video
+        if (ref_start_offset_seconds != NULL)
+        {
+            strcat(converted_unicode_command, " -ss ");
+            strcat(converted_unicode_command, ref_start_offset_seconds);
+        }
+
+        // if a maximum number of frames was specified then add the parameter to ffmpeg
+        if (max_frames != NULL)
+        {
+            strcat(converted_unicode_command, " -vframes ");
+            strcat(converted_unicode_command, max_frames);
+        }
+
+        // shall we deinterlace the reference video?
+        if (ref_deinterlace == true)
+        {
+            strcat(converted_unicode_command, " -vf yadif ");
+        }
+
+        // append the dash for ffmpeg to write to output pipe
+        strcat(converted_unicode_command, " -");
+
+        // open reference file using ffmpeg
+        if (!(s->ref_rfile = popen(converted_unicode_command, "r")))
+        {
+            fprintf(stderr, "fopen ref_path %s failed.\n", ref_path);
+            ret = 1;
+            goto fail_or_end;
+        }
+    }
+    else
+#endif
     if (!(s->ref_rfile = fopen(ref_path, "rb")))
     {
         fprintf(stderr, "fopen ref_path %s failed.\n", ref_path);
@@ -100,7 +160,47 @@ int run_wrapper(char *fmt, int width, int height, char *ref_path, char *dis_path
         goto fail_or_end;
     }
 
+#ifdef FFMPEG_IMPORT
+    if (dis_is_raw == false)
+    {
+        // build ffmpeg command using UTF8 character set
+        mbstowcs(unicode_filename, dis_path, MAX_PATH);
+        swprintf(unicode_ffmpeg_command, MAX_PATH, L"ffmpeg -i \"%ls\" -f image2pipe -vcodec rawvideo -pix_fmt yuv420p", unicode_filename);
+        wcstombs(converted_unicode_command, unicode_ffmpeg_command, MAX_PATH);
 
+        // offset in seconds from start of video
+        if (dis_start_offset_seconds != NULL)
+        {
+            strcat(converted_unicode_command, " -ss ");
+            strcat(converted_unicode_command, dis_start_offset_seconds);
+        }
+
+        // if a maximum number of frames was specified then add the parameter to ffmpeg
+        if (max_frames != NULL)
+        {
+            strcat(converted_unicode_command, " -vframes ");
+            strcat(converted_unicode_command, max_frames);
+        }
+
+        // shall we deinterlace the encoded video?
+        if (dis_deinterlace == true)
+        {
+            strcat(converted_unicode_command, " -vf yadif ");
+        }
+
+        // append the dash for ffmpeg to write to output pipe
+        strcat(converted_unicode_command, " -");
+
+        // open distorted file using ffmpeg
+        if (!(s->dis_rfile = popen(converted_unicode_command, "r")))
+        {
+            fprintf(stderr, "fopen ref_path %s failed.\n", dis_path);
+            ret = 1;
+            goto fail_or_end;
+        }
+    }
+    else
+#endif
     if (!(s->dis_rfile = fopen(dis_path, "rb")))
     {
         fprintf(stderr, "fopen ref_path %s failed.\n", dis_path);
@@ -145,6 +245,15 @@ int main(int argc, char *argv[])
     bool do_ssim = false;
     bool do_ms_ssim = false;
     char *pool_method = NULL;
+#ifdef FFMPEG_IMPORT
+    bool ref_is_raw = false;
+    bool dis_is_raw = false;
+    bool ref_deinterlace = false;
+    bool dis_deintrlace = false;
+    char *max_frames = NULL;
+    char *ref_start_offset_seconds = NULL;
+    char *dis_start_offset_seconds = NULL;
+#endif
 
     /* Check parameters */
 
@@ -153,6 +262,10 @@ int main(int argc, char *argv[])
         print_usage(argc, argv);
         return -1;
     }
+
+#ifdef FFMPEG_IMPORT
+    std::setlocale(LC_ALL, "en_US.UTF-8");
+#endif
 
     fmt = argv[1];
     width = std::stoi(argv[2]);
@@ -212,6 +325,33 @@ int main(int argc, char *argv[])
         do_ms_ssim = true;
     }
 
+#ifdef FFMPEG_IMPORT
+    if (cmdOptionExists(argv + 7, argv + argc, "--ref-is-raw"))
+    {
+        ref_is_raw = true;
+    }
+
+    if (cmdOptionExists(argv + 7, argv + argc, "--dis-is-raw"))
+    {
+        dis_is_raw = true;
+    }
+
+    if (cmdOptionExists(argv + 7, argv + argc, "--ref-deinterlace"))
+    {
+        ref_deinterlace = true;
+    }
+
+    if (cmdOptionExists(argv + 7, argv + argc, "--dis-deinterlace"))
+    {
+        dis_deintrlace = true;
+    }
+
+    max_frames = getCmdOption(argv + 7, argv + argc, "--frames");
+
+    ref_start_offset_seconds = getCmdOption(argv + 7, argv + argc, "--ref-start-offset-seconds");
+    dis_start_offset_seconds = getCmdOption(argv + 7, argv + argc, "--dis-start-offset-seconds");
+#endif
+
     pool_method = getCmdOption(argv + 7, argv + argc, "--pool");
     if (pool_method != NULL && !(strcmp(pool_method, "min")==0 || strcmp(pool_method, "harmonic_mean")==0 || strcmp(pool_method, "mean")==0))
     {
@@ -221,9 +361,15 @@ int main(int argc, char *argv[])
         
     try
     {
+#ifdef FFMPEG_IMPORT
+        return run_wrapper(fmt, width, height, ref_path, ref_start_offset_seconds, ref_is_raw, ref_deinterlace, dis_path, dis_start_offset_seconds, dis_is_raw, dis_deintrlace, max_frames, model_path,
+                log_path, log_fmt, disable_clip, disable_avx, enable_transform, phone_model,
+                do_psnr, do_ssim, do_ms_ssim, pool_method);
+#else
         return run_wrapper(fmt, width, height, ref_path, dis_path, model_path,
                 log_path, log_fmt, disable_clip, disable_avx, enable_transform, phone_model,
                 do_psnr, do_ssim, do_ms_ssim, pool_method);
+#endif
     }
     catch (const std::exception &e)
     {
