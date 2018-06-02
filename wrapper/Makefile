@@ -100,6 +100,9 @@ $(OBJDIR)/vif_tools.o: $(FEATURESRCDIR)/vif_tools.c
 $(OBJDIR)/motion.o: $(FEATURESRCDIR)/motion.c
 	$(CC) -c -o $@ $(CFLAGS) $(CPPFLAGS) $<
 
+$(OBJDIR)/psnr.o: $(FEATURESRCDIR)/psnr.c
+	$(CC) -c -o $@ $(CFLAGS) $(CPPFLAGS) $<
+
 $(OBJDIR)/math_utils.o: $(FEATURESRCDIR)/iqa/math_utils.c
 	$(CC) -c -o $@ $(CFLAGS) $(CPPFLAGS) $<
 
