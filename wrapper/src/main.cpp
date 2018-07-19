@@ -117,7 +117,7 @@ int run_wrapper(char *fmt, int width, int height, char *ref_path, char *dis_path
     {
         // build ffmpeg command using UTF8 character set
         mbstowcs(unicode_filename, ref_path, MAX_PATH);
-        swprintf(unicode_ffmpeg_command, MAX_PATH, L"ffmpeg -i \"%ls\" -f image2pipe -vcodec rawvideo -pix_fmt yuv420p", unicode_filename);
+        swprintf(unicode_ffmpeg_command, MAX_PATH, L"ffmpeg -i \"%ls\" -s %dx%d -f image2pipe -vcodec rawvideo -pix_fmt yuv420p", unicode_filename, width, height);
         wcstombs(converted_unicode_command, unicode_ffmpeg_command, MAX_PATH);
 
         // offset in seconds from start of video
@@ -165,7 +165,7 @@ int run_wrapper(char *fmt, int width, int height, char *ref_path, char *dis_path
     {
         // build ffmpeg command using UTF8 character set
         mbstowcs(unicode_filename, dis_path, MAX_PATH);
-        swprintf(unicode_ffmpeg_command, MAX_PATH, L"ffmpeg -i \"%ls\" -f image2pipe -vcodec rawvideo -pix_fmt yuv420p", unicode_filename);
+        swprintf(unicode_ffmpeg_command, MAX_PATH, L"ffmpeg -i \"%ls\" -s %dx%d -f image2pipe -vcodec rawvideo -pix_fmt yuv420p", unicode_filename, width, height);
         wcstombs(converted_unicode_command, unicode_ffmpeg_command, MAX_PATH);
 
         // offset in seconds from start of video
